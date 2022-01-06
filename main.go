@@ -9,9 +9,14 @@ import (
 	"strings"
 )
 
+const EXPORT_TYPE = "emf"
+const EXPORT_EXT = EXPORT_TYPE
+
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Println("Usage : " + os.Args[0] + " input filename to convert to EMF")
+		fmt.Println("Usage : " + os.Args[0] + " filename")
+		fmt.Println("    filename : input filename to convert to " + EXPORT_TYPE)
+
 		os.Exit(1)
 	}
 
@@ -22,16 +27,22 @@ func main() {
 		os.Exit(2)
 	}
 
-	availables := []string{
-		`C:\Program Files\Inkscape\bin\inkscape.exe`,
-		`C:\Program Files (x86)\Inkscape\bin\inkscape.exe`,
+	const INFILE_PLACEHOLDER = "{{infile}}"
+	const OUTFILE_PLACEHOLDER = "{{outfile}}"
+
+	availables := map[string][]string{
+		`C:\Program Files\Inkscape\bin\inkscape.exe`: {INFILE_PLACEHOLDER, "--export-filename", OUTFILE_PLACEHOLDER},
+		`C:\Program Files\Inkscape\inkscape.exe`:     {INFILE_PLACEHOLDER, "--export-" + EXPORT_TYPE, OUTFILE_PLACEHOLDER},
 	}
 
 	fmt.Fprintf(os.Stderr, "Searching Inkscape.\n")
 	var foundapp string = ""
-	for _, app := range availables {
+	var argPattern []string
+
+	for app, arg := range availables {
 		if _, err := os.Stat(app); err == nil {
 			foundapp = app
+			argPattern = arg
 			// fmt.Fprintf(os.Stderr, "FOUND : %s\n", app)
 			break
 		}
@@ -52,7 +63,22 @@ func main() {
 
 	fmt.Println("convert to '" + outfile + "'")
 
-	cmd := exec.Command(foundapp, infile, "--export-filename", outfile)
+	var inkscapeArgs []string
+	if argPattern != nil {
+		inkscapeArgs = make([]string, len(argPattern))
+		for i, v := range argPattern {
+			v = strings.Replace(v, INFILE_PLACEHOLDER, infile, -1)
+			v = strings.Replace(v, OUTFILE_PLACEHOLDER, outfile, -1)
+			inkscapeArgs[i] = v
+		}
+	}
+
+	var cmd *exec.Cmd
+	if inkscapeArgs == nil {
+		cmd = exec.Command(foundapp)
+	} else {
+		cmd = exec.Command(foundapp, inkscapeArgs...)
+	}
 
 	out, err := cmd.CombinedOutput()
 	fmt.Println(string(out))
