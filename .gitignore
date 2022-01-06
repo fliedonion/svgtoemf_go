@@ -1,0 +1,7 @@
+*.exe
+
+*.*
+!*.go
+!*.mod
+!.gitignore
+!.git*
